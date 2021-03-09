@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2021-03-09T15:29:36.673Z" agent="5.0 (X11)" etag="F0hXWJoy03Yyso8q8PnP" version="14.4.5" type="github">
+<mxfile host="app.diagrams.net" modified="2021-03-09T16:04:41.127Z" agent="5.0 (X11)" etag="xCSAlkwycEwtLk1fB8iP" version="14.4.5" type="github">
   <diagram id="FM04whXNcfyG1jP_JYNI" name="Page-1">
     <mxGraphModel dx="1438" dy="1369" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
@@ -165,7 +165,7 @@
         <mxCell id="Lnknif8dTfj-DUFB5nNW-100" value="Cache treat_score=0 with NXDOMAIN trust time expiry " style="shape=ext;rounded=1;html=1;fontFamily=Helvetica;labelBorderColor=none;labelBackgroundColor=none;whiteSpace=wrap;" vertex="1" parent="Lnknif8dTfj-DUFB5nNW-7">
           <mxGeometry x="1875" y="240" width="120" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="Lnknif8dTfj-DUFB5nNW-106" value="Should set Cookie" style="html=1;shape=mxgraph.flowchart.annotation_2;align=left;labelPosition=right;labelBackgroundColor=none;fontFamily=Helvetica;" vertex="1" parent="Lnknif8dTfj-DUFB5nNW-7">
+        <mxCell id="Lnknif8dTfj-DUFB5nNW-106" value="Should set Cookie if&lt;br&gt;browser" style="html=1;shape=mxgraph.flowchart.annotation_2;align=left;labelPosition=right;labelBackgroundColor=none;fontFamily=Helvetica;" vertex="1" parent="Lnknif8dTfj-DUFB5nNW-7">
           <mxGeometry x="2010" y="240" width="50" height="100" as="geometry" />
         </mxCell>
         <mxCell id="Lnknif8dTfj-DUFB5nNW-8" value="Client" style="swimlane;html=1;startSize=20;horizontal=0;fontFamily=Helvetica;labelBorderColor=none;labelBackgroundColor=none;whiteSpace=wrap;" vertex="1" parent="Lnknif8dTfj-DUFB5nNW-5">
