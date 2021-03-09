@@ -38,6 +38,8 @@ local function dnsbl_lookup(name)
                    err, table.concat(tries, "\n  "))
     end
 
+    -- NXDOMAIN
+    if answers.errcode == 3 then return {address = "127.0.0.1"}, nil end
     if answers.errcode then
         return nil,
                string.format("nameserver returned error code: %s: %s",
@@ -50,13 +52,13 @@ end
 
 ---Parse DNSBL response parameter
 ---https://www.projecthoneypot.org/httpbl_api.php
----@param dnsbl_response_name string
+---@param dnsbl_response_addr string
 ---@return table|nil, string|nil
-local function parse_dnsbl_response(dnsbl_response_name)
-    local split_res = string:split(dnsbl_response_name, ".")
+local function parse_dnsbl_response(dnsbl_response_addr)
+    local split_res = string:split(dnsbl_response_addr, ".")
     if #split_res ~= 4 or split_res[1] ~= "127" then
         return nil,
-               string.format("invalid dnsbl response: %s", dnsbl_response_name)
+               string.format("invalid dnsbl response: %s", dnsbl_response_addr)
     end
     return {
         stale_days = tonumber(split_res[2]),
@@ -65,12 +67,23 @@ local function parse_dnsbl_response(dnsbl_response_name)
     }
 end
 
-return function(remote_addr)
-    local remote_addr = remote_addr or ngx.var.remote_addr
-    if not remote_addr then
-        ngx.log(ngx.ERR, "failed to read remote_addr")
-        return
+---Validate ip reputation trust time
+---@param trust_time number
+---@return number
+local function validate_trust_time(trust_time)
+    if not trust_time or trust_time > TRUST_TIME_THRESHOLD then
+        return TRUST_TIME_THRESHOLD
+    else
+        return trust_time
     end
+end
+
+---IP reputation handler
+---@param remote_addr string
+---@param trust_time number
+return function(remote_addr, trust_time)
+    local cache_treat_score = tonumber(DNSBL_Cache:get(remote_addr))
+    if cache_treat_score then return end
 
     local query_name = construct_dnsbl_query_name(remote_addr,
                                                   HONEYPOT_ACCESS_KEY)
@@ -80,10 +93,26 @@ return function(remote_addr)
         return
     end
 
-    local parsed_dnsbl_response, err = parse_dnsbl_response(dnsbl_lookup.name)
+    local parsed_dnsbl_response, err = parse_dnsbl_response(
+                                           dnsbl_lookup_res.address)
     if not parsed_dnsbl_response then
         ngx.log(ngx.ERR, err)
         return
     end
-end
 
+    -- Search engine
+    if parsed_dnsbl_response.visitor_type == 0 then
+        DNSBL_Cache:set(remote_addr, 0, SEARCH_ENGINE_TRUST_TIME)
+        return
+    end
+    -- NXDOMAIN
+    if parsed_dnsbl_response.threat_score == 0 then
+        DNSBL_Cache:set(remote_addr, 0, NXDOMAIN_TRUST_TIME)
+        return
+    end
+
+    ngx.lookup()
+    local tt = validate_trust_time(trust_time)
+    ngx.log(ngx.ERR, tt)
+    DNSBL_Cache:set(remote_addr, parsed_dnsbl_response.threat_score, tt)
+end

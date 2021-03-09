@@ -2,6 +2,6 @@
   "ifconfig.me": {
     "target_ip": "216.239.32.21",
     "ip_reputation_enabled": 1,
-    "ip_reputation_trust_time": 3000
+    "ip_reputation_trust_time": 3
   }
 }
