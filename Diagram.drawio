@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" modified="2021-03-09T15:17:48.762Z" agent="5.0 (X11)" etag="zVWGnQ5lbUl-D0m8LLfq" version="14.4.5" type="github">
+<mxfile host="app.diagrams.net" modified="2021-03-09T15:20:26.229Z" agent="5.0 (X11)" etag="UJ_2KkZTuCXzv9XUK33h" version="14.4.5" type="github">
   <diagram id="FM04whXNcfyG1jP_JYNI" name="Page-1">
-    <mxGraphModel dx="1222" dy="1164" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1746" dy="1663" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -126,14 +126,16 @@
         <mxCell id="Lnknif8dTfj-DUFB5nNW-83" value="NO" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontFamily=Helvetica;" edge="1" parent="Lnknif8dTfj-DUFB5nNW-7" source="Lnknif8dTfj-DUFB5nNW-81" target="Lnknif8dTfj-DUFB5nNW-23">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="Lnknif8dTfj-DUFB5nNW-85" value="YES" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontFamily=Helvetica;" edge="1" parent="Lnknif8dTfj-DUFB5nNW-7" source="Lnknif8dTfj-DUFB5nNW-81" target="Lnknif8dTfj-DUFB5nNW-84">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="Lnknif8dTfj-DUFB5nNW-94" value="YES" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=none;fontFamily=Helvetica;" edge="1" parent="Lnknif8dTfj-DUFB5nNW-7" source="Lnknif8dTfj-DUFB5nNW-81" target="Lnknif8dTfj-DUFB5nNW-73">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="500" y="80" />
+              <mxPoint x="1970" y="80" />
+            </Array>
+          </mxGeometry>
         </mxCell>
         <mxCell id="Lnknif8dTfj-DUFB5nNW-81" value="" style="shape=mxgraph.bpmn.shape;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=rhombusPerimeter;background=gateway;outlineConnect=0;outline=none;symbol=exclusiveGw;fontFamily=Helvetica;" vertex="1" parent="Lnknif8dTfj-DUFB5nNW-7">
           <mxGeometry x="475" y="155" width="50" height="50" as="geometry" />
-        </mxCell>
-        <mxCell id="Lnknif8dTfj-DUFB5nNW-84" value="Check if treat_score=0" style="shape=ext;rounded=1;html=1;fontFamily=Helvetica;labelBorderColor=none;labelBackgroundColor=none;whiteSpace=wrap;" vertex="1" parent="Lnknif8dTfj-DUFB5nNW-7">
-          <mxGeometry x="440" y="260" width="120" height="80" as="geometry" />
         </mxCell>
         <mxCell id="Lnknif8dTfj-DUFB5nNW-8" value="Client" style="swimlane;html=1;startSize=20;horizontal=0;fontFamily=Helvetica;labelBorderColor=none;labelBackgroundColor=none;whiteSpace=wrap;" vertex="1" parent="Lnknif8dTfj-DUFB5nNW-5">
           <mxGeometry x="20" y="480" width="2040" height="140" as="geometry" />
@@ -150,16 +152,10 @@
         <mxCell id="Lnknif8dTfj-DUFB5nNW-75" value="" style="shape=mxgraph.bpmn.shape;html=1;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;outline=end;symbol=terminate;fontFamily=Helvetica;labelBorderColor=none;whiteSpace=wrap;" vertex="1" parent="Lnknif8dTfj-DUFB5nNW-8">
           <mxGeometry x="1945" y="30" width="50" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="Lnknif8dTfj-DUFB5nNW-86" value="" style="shape=mxgraph.bpmn.shape;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;outline=end;symbol=terminate;fontFamily=Helvetica;" vertex="1" parent="Lnknif8dTfj-DUFB5nNW-8">
-          <mxGeometry x="475" y="30" width="50" height="50" as="geometry" />
-        </mxCell>
         <mxCell id="Lnknif8dTfj-DUFB5nNW-57" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;labelBorderColor=none;labelBackgroundColor=none;" edge="1" parent="Lnknif8dTfj-DUFB5nNW-5" target="Lnknif8dTfj-DUFB5nNW-56">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="1165" y="450" as="sourcePoint" />
           </mxGeometry>
-        </mxCell>
-        <mxCell id="Lnknif8dTfj-DUFB5nNW-87" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=none;fontFamily=Helvetica;" edge="1" parent="Lnknif8dTfj-DUFB5nNW-5" source="Lnknif8dTfj-DUFB5nNW-84" target="Lnknif8dTfj-DUFB5nNW-86">
-          <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
