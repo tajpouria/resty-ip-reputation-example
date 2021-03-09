@@ -34,7 +34,7 @@ local function dnsbl_lookup(name)
     if not answers then
         return nil,
                string.format(
-                   "failed to query the DNS server: %s\n retry historie: %s",
+                   "failed to query the DNS server: %s\n retry histories: %s",
                    err, table.concat(tries, "\n  "))
     end
 
