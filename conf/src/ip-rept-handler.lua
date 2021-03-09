@@ -111,8 +111,6 @@ return function(remote_addr, trust_time)
         return
     end
 
-    ngx.lookup()
     local tt = validate_trust_time(trust_time)
-    ngx.log(ngx.ERR, tt)
     DNSBL_Cache:set(remote_addr, parsed_dnsbl_response.threat_score, tt)
 end
