@@ -8,8 +8,8 @@ local CK_crypto = {_decipher = nil}
 ---@return string|nil cookie
 ---@return string|nil err
 function CK_crypto:decrypt(encrypted_cookie)
-    local _, ck =
-        pcall(self._decipher.decrypt, self._decipher, encrypted_cookie)
+    local decoded_val = ngx.decode_base64(encrypted_cookie)
+    local _, ck = pcall(self._decipher.decrypt, self._decipher, decoded_val)
     if not ck then return nil, "decipher.decrypt - decryption failed" end
 
     return ck, nil
@@ -23,7 +23,7 @@ function CK_crypto:encrypt(cookie)
     local _, enck = pcall(self._decipher.encrypt, self._decipher, cookie)
     if not enck then return nil, "decipher.encrypt - encryption failed" end
 
-    return Str.to_hex(enck), nil
+    return ngx.encode_base64(enck), nil
 end
 
 --- Cookie crypto constructor

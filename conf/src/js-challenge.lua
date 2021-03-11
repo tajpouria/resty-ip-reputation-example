@@ -67,46 +67,23 @@ local function Set(dict, key, data, ttl)
 end
 
 function _M.challenge(config)
-    local BASIC_DIFFICULTY = config.difficulty or 100
-    local MIN_DIFFICULTY = config.min_difficulty or 0
-    local TRUST_TIME = config.TRUST_TIME or 300 -- TODO: Check for minimum 5 min
-    local RESPONSE_TARGET = config.target or "___"
-    local PUZZLE_TEMPLATE_LOCATION = config.template or
-                                         '/etc/nginx/html/puzzle.html'
-    local CLIENT_KEY = config.client_key or ngx.var.remote_addr
-
-    local CK_CACHE = config.ck_cache or CK_cache
-    local JS_CHALLENGE_SEED_CACHE = config.js_challenge_seed_cache or
-                                        JS_challenge_seed_cache
-
-    local COOKIE_FETCH_KEY = "COOKIE_" .. CLIENT_KEY
-
-    local SEED_FETCH_KEY = "SEED_" .. CLIENT_KEY
-
-    local field = false
-    -- Create URL
-    local URL = ngx.var.scheme .. "://" .. ngx.var.host .. ngx.var.request_uri;
-
-    local cookie, err = CK:new()
-    if not cookie then
-        ngx.log(ngx.ERR, err)
-        ngx.exit(503)
-        return
-    end
-
-    field, err = cookie:get(PDUID_cookie_key)
-    if field then
-        local data = Get(CK_CACHE, COOKIE_FETCH_KEY)
-        if data == field then
-            ngx.header.cache_control = "no-store";
-            return true
-        end
-    end
-
     if ngx.var.request_method ~= 'GET' then
         ngx.exit(405)
         return
     end
+
+    local BASIC_DIFFICULTY = config.difficulty or 100
+    local MIN_DIFFICULTY = config.min_difficulty or 0
+    local TRUST_TIME = config.trust_time or 300 -- TODO: Check for minimum 5 min
+    local RESPONSE_TARGET = config.target or "___"
+    local PUZZLE_TEMPLATE_LOCATION = config.template or
+                                         '/etc/nginx/html/puzzle.html'
+    local CLIENT_KEY = config.client_key or ngx.var.remote_addr
+    local JS_CHALLENGE_SEED_CACHE = config.js_challenge_seed_cache or
+                                        JS_challenge_seed_cache
+
+    -- Create URL
+    local URL = ngx.var.scheme .. "://" .. ngx.var.host .. ngx.var.request_uri;
 
     -- Set client key for SEED
 
@@ -117,7 +94,7 @@ function _M.challenge(config)
 
     local DIFF = BASIC_DIFFICULTY * TRYS
 
-    local data = Get(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY)
+    local data = Get(JS_CHALLENGE_SEED_CACHE, CLIENT_KEY)
 
     local now = os.time();
 
@@ -148,7 +125,7 @@ function _M.challenge(config)
             TRUST_TIME = TRUST_TIME
         }
         -- Set to REDIS, so it can be fetched
-        Set(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY, obj, SEED_CACHE_EXPIRY)
+        Set(JS_CHALLENGE_SEED_CACHE, CLIENT_KEY, obj, SEED_CACHE_EXPIRY)
     else
         -- Bump trys
         TRYS = tonumber(data['TRYS']) + 1
@@ -168,7 +145,7 @@ function _M.challenge(config)
         }
 
         -- Set to REDIS, so trycount we can bump trycount and Time
-        Set(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY, obj, SEED_CACHE_EXPIRY)
+        Set(JS_CHALLENGE_SEED_CACHE, CLIENT_KEY, obj, SEED_CACHE_EXPIRY)
     end
 
     -- Set template as string
@@ -212,10 +189,8 @@ function _M.response(config)
     local SECURE = config.cookie_secure or false
     local COOKIE_DOMAIN = config.cookie_domain or ngx.var.host
     local COOKIE_PATH = config.cookie_domain or "/"
-
     local MIN_TIME = config.min_time or 2
-
-    local CK_CACHE = config.ck_cache or CK_cache
+    local PDUID_CACHE = config.ck_cache or PDUID_cache
     local JS_CHALLENGE_SEED_CACHE = config.js_challenge_seed_cache or
                                         JS_challenge_seed_cache
 
@@ -240,10 +215,6 @@ function _M.response(config)
         return
     end
 
-    local COOKIE_FETCH_KEY = "COOKIE_" .. CLIENT_KEY;
-
-    local SEED_FETCH_KEY = "SEED_" .. CLIENT_KEY;
-
     ----- Authentication checks done --
 
     local cookie, err = CK:new()
@@ -256,7 +227,7 @@ function _M.response(config)
 
     output.status = "fail"
 
-    local data = Get(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY)
+    local data = Get(JS_CHALLENGE_SEED_CACHE, CLIENT_KEY)
 
     if data then
         -- Found, check if valid
@@ -272,7 +243,7 @@ function _M.response(config)
             if TIMEDIFF >= MIN_TIME then
                 -- TODO: Handle err
                 local cookie_value, err =
-                    CK_crypto:encrypt(now + COOKIE_LIFETIME)
+                    CK_crypto:encrypt(tostring(now + COOKIE_LIFETIME))
                 if not cookie_value then
                     ngx.log(ngx.ERR, err)
                     return
@@ -293,11 +264,11 @@ function _M.response(config)
                         max_age = COOKIE_LIFETIME
                     })
 
-                Set(CK_CACHE, COOKIE_FETCH_KEY, cookie_value, CK_CACHE_EXPIRY)
+                Set(PDUID_CACHE, cookie_value, 1, PDUID_CACHE_EXPIRY)
 
                 output.status = "success"
                 output.redirect = data['URL']
-                Del(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY)
+                Del(JS_CHALLENGE_SEED_CACHE, CLIENT_KEY)
             else
                 output.message = "Too fast!"
                 output.time = TIMEDIFF
