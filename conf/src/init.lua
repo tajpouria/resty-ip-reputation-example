@@ -21,13 +21,15 @@ DNSBL_CACHE_SEARCH_ENGINE_EXPIRY = 86400 -- 1 days
 DNSBL_CACHE_EXPIRY = 60 -- 1 min
 CK_CACHE_EXPIRY = 60 -- 1min
 SEED_CACHE_EXPIRY = 60 -- 1min
+PDUID_cookie_key = "_pduid"
 
-IP_reputation_handler = require "conf.src.ip-rept-handler"
+DNSBL = require "conf.src.dnsbl"
 Resolver = require "resty.dns.resolver"
 Aes = require "resty.aes"
 Sha1 = require "resty.sha1"
 CK = require "resty.cookie"
 Str = require "resty.string"
+JS_challenge = require "conf.src.js-challenge"
 CK_crypto = require "conf.src.ck-crypto":new(
                 os.getenv("COOKIE_DECRYPTION_BASE64_SECRET"))
 function string:split(self, sep)

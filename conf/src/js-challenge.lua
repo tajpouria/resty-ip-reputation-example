@@ -71,7 +71,6 @@ function _M.challenge(config)
     local MIN_DIFFICULTY = config.min_difficulty or 0
     local TRUST_TIME = config.TRUST_TIME or 300 -- TODO: Check for minimum 5 min
     local RESPONSE_TARGET = config.target or "___"
-    local COOKIE_NAME = config.cookie or "_pduid"
     local PUZZLE_TEMPLATE_LOCATION = config.template or
                                          '/etc/nginx/html/puzzle.html'
     local CLIENT_KEY = config.client_key or ngx.var.remote_addr
@@ -95,7 +94,7 @@ function _M.challenge(config)
         return
     end
 
-    field, err = cookie:get(COOKIE_NAME)
+    field, err = cookie:get(PDUID_cookie_key)
     if field then
         local data = Get(CK_CACHE, COOKIE_FETCH_KEY)
         if data == field then
@@ -207,7 +206,6 @@ function _M.response(config)
         return
     end
 
-    local COOKIE_NAME = config.cookie or "_pduid"
     local CLIENT_KEY = config.client_key or ngx.var.remote_addr
     local TIMEZONE = config.timezone or "GMT"
     local HTTP_ONLY = config.http_only_cookie or false
@@ -285,7 +283,7 @@ function _M.response(config)
                 -- TODO: Handler err
                 local ok, err = cookie:set(
                                     {
-                        key = COOKIE_NAME,
+                        key = PDUID_cookie_key,
                         value = cookie_value,
                         path = COOKIE_PATH,
                         domain = COOKIE_DOMAIN,
