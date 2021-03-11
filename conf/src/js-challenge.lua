@@ -1,16 +1,7 @@
-local _M = {_VERSION = "1.0"}
-
-local redis = require "resty.redis"
-local ck = require "resty.cookie"
-
-local cjson = require "cjson"
-local clientIP = ngx.var.remote_addr
-
-local resty_sha1 = require "resty.sha1"
-local str = require "resty.string"
+local _M = {}
 
 local function sha1(data)
-    local s = resty_sha1:new()
+    local s = Resty_sha1:new()
     if not s then
         ngx.log(ngx.ERR, "failed to create the sha1 object")
         return
@@ -23,12 +14,11 @@ local function sha1(data)
     end
 
     local digest = s:final()
-    return str.to_hex(digest)
+    return Str.to_hex(digest)
 end
 
 local function CreatePow(min, max)
     math.randomseed(os.time());
-    -- Start from 6000, so it wont be to easy
     return math.random(min, max);
 end
 
@@ -56,64 +46,22 @@ local function RandomString(length)
     return table.concat(array)
 end
 
-local function Fetch(redis_connection, key, log_level)
-    local json, err = redis_connection:get(key)
-    if not json then
-        -- ngx.say("failed to get ipaddr ", err)
-        ngx.log(log_level, "failed to get key ", err)
-        ngx.exit(nginx.HTTP_INTERNAL_SERVER_ERROR)
-        return
-    end
+local function Get(dict, key)
+    local json = dict:get(key)
+    if not json then return nil end
 
-    if json == ngx.null then
-        -- Nothing in the DB, return false
-        return nil
-    else
-        return cjson.decode(json)
-    end
+    return Cjson.decode(json)
 end
 
-local function Del(redis_connection, key, log_level)
-    local json, err = redis_connection:del(key)
-    if not json then
-        -- ngx.say("failed to get ipaddr ", err)
-        ngx.log(log_level, "failed to delete key ", err)
-        ngx.exit(nginx.HTTP_INTERNAL_SERVER_ERROR)
-        return
-    end
-    return true
-end
+local function Del(dict, key) dict:delete(key) end
 
-local function Set(redis_connection, key, data, ttl, log_level)
-    local ok, err = redis_connection:set(key, cjson.encode(data))
-    if not ok then
-        ngx.log(log_level, "failed to set key ", err)
-        ngx.exit(nginx.HTTP_INTERNAL_SERVER_ERROR)
-        return
-    end
-
-    -- Set lifetime of key
-    local ok, err = redis_connection:expire(key, ttl)
-    if not ok then
-        ngx.log(log_level, "failed to set key expire ", err)
-        ngx.exit(nginx.HTTP_INTERNAL_SERVER_ERROR)
-        return
-    end
-
-    return true
-end
+local function Set(dict, key, data, ttl) dict:set(key, Cjson.encode(data), ttl) end
 
 function _M.challenge(config)
-
-    local redis_config = config.redis_config or {}
-
-    -- Basic config, with default values
     local LOG_LEVEL = config.log_level or ngx.NOTICE
 
-    local COKKIE_LIFETIME = config.session_lifetime or 604800
     local BASIC_DIFFICULTY = config.difficulty or 100
     local MIN_DIFFICULTY = config.min_difficulty or 0
-    local SEED_LENGTH = config.seed_length or 30
     local SEED_LIFETIME = config.lifetime or 60
     local RESPONSE_TARGET = config.target or "___"
     local COOKIE_NAME = config.cookie or "_cuid"
@@ -121,10 +69,8 @@ function _M.challenge(config)
                                          '/etc/nginx/html/puzzle.html'
     local CLIENT_KEY = config.client_key or ngx.var.remote_addr
 
-    -- Redis Config
-    local REDIS_TIMEOUT = redis_config.timeout or 1
-    local REDIS_SERVER = redis_config.host or "127.0.0.1"
-    local REDIS_PORT = redis_config.port or 6379
+    local JS_CHALLENGE_SEED_CACHE = config.js_challenge_seed_cache or
+                                        JS_challenge_seed_cache
 
     local COOKIE_FETCH_KEY = "COOKIE_" .. CLIENT_KEY
 
@@ -136,30 +82,19 @@ function _M.challenge(config)
     -- Create URL
     local URL = ngx.var.scheme .. "://" .. ngx.var.host .. ngx.var.request_uri;
 
-    local cookie, err = ck:new()
+    local cookie, err = CK:new()
     if not cookie then
         ngx.log(LOG_LEVEL, err)
         ngx.exit(503)
         return
     end
 
-    local REDIS_CONNECTION = redis:new()
-    REDIS_CONNECTION:set_timeout(REDIS_TIMEOUT * 1000)
-
-    local ok, error = REDIS_CONNECTION:connect(REDIS_SERVER, REDIS_PORT)
-    if not ok then
-        ngx.log(LOG_LEVEL, "failed to connect to redis: ", error)
-        ngx.exit(503)
-        return
-    end
-
     field, err = cookie:get(COOKIE_NAME)
     if field then
-        local redis_fetch = Fetch(REDIS_CONNECTION, COOKIE_FETCH_KEY, LOG_LEVEL)
-        if redis_fetch ~= nil then
-            if redis_fetch == field then
+        local data = Get(JS_CHALLENGE_SEED_CACHE, COOKIE_FETCH_KEY)
+        if data ~= nil then
+            if data == field then
                 authenticated = true
-                local ok, err = REDIS_CONNECTION:close()
                 ngx.header.cache_control = "no-store";
                 return true
             end
@@ -183,7 +118,7 @@ function _M.challenge(config)
 
     local DIFF = BASIC_DIFFICULTY * TRYS
 
-    local redis_fetch = Fetch(REDIS_CONNECTION, SEED_FETCH_KEY, LOG_LEVEL)
+    local redis_fetch = Get(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY)
 
     -- If not set in REDIS, then do some work
 
@@ -215,8 +150,7 @@ function _M.challenge(config)
             URL = URL
         }
         -- Set to REDIS, so it can be fetched
-        local redis_set = Set(REDIS_CONNECTION, SEED_FETCH_KEY, obj,
-                              SEED_LIFETIME, LOG_LEVEL)
+        Set(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY, obj, SEED_LIFETIME)
     else
         -- Bump trys
         TRYS = tonumber(redis_fetch['TRYS']) + 1
@@ -235,8 +169,7 @@ function _M.challenge(config)
         }
 
         -- Set to REDIS, so trycount we can bump trycount and Time
-        local redis_set = Set(REDIS_CONNECTION, SEED_FETCH_KEY, obj,
-                              SEED_LIFETIME, LOG_LEVEL)
+        Set(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY, obj, SEED_LIFETIME)
         -- obj = redis_fetch
     end
 
@@ -269,29 +202,18 @@ function _M.challenge(config)
     -- ngx.header["Pragma"] = "no-cache"
     -- ngx.header["Expires"] = "0"
 
-    local ok, err = REDIS_CONNECTION:close()
     ngx.header['Content-Type'] = 'text/html; charset=UTF-8'
     ngx.say(puzzle_html)
     ngx.exit(ngx.HTTP_OK)
 
-    -- ngx.exit(405)
+    -- ngx.exit(405) 
 end
 
 function _M.response(config)
-
-    local redis_config = config.redis_config or {}
-
-    -- Basic config, with default values
     local LOG_LEVEL = config.log_level or ngx.NOTICE
 
     local COKKIE_LIFETIME = config.session_lifetime or 604800
-    local BASIC_DIFFICULTY = config.difficulty or 300000
-    local SEED_LENGTH = config.seed_length or 30
-    local SEED_LIFETIME = config.lifetime or 60
-    local RESPONSE_TARGET = config.target or "___"
     local COOKIE_NAME = config.cookie or "_cuid"
-    local PUZZLE_TEMPLATE_LOCATION = config.template or
-                                         '/etc/nginx/html/puzzle.html'
     local CLIENT_KEY = config.client_key or ngx.var.remote_addr
     local TIMEZONE = config.timezone or "GMT"
     local HTTP_ONLY = config.http_only_cookie or false
@@ -302,9 +224,8 @@ function _M.response(config)
     local MIN_TIME = config.min_time or 2
 
     -- Redis Config
-    local REDIS_TIMEOUT = redis_config.timeout or 1
-    local REDIS_SERVER = redis_config.host or "127.0.0.1"
-    local REDIS_PORT = redis_config.port or 6379
+    local JS_CHALLENGE_SEED_CACHE = config.js_challenge_seed_cache or
+                                        JS_challenge_seed_cache
 
     -- Ger all args as Lua object
     local args = ngx.req.get_uri_args()
@@ -344,7 +265,7 @@ function _M.response(config)
 
     ----- Authentication checks done --
 
-    local cookie, err = ck:new()
+    local cookie, err = CK:new()
     if not cookie then
         ngx.log(LOG_LEVEL, err)
         return
@@ -353,28 +274,17 @@ function _M.response(config)
     local output = {}
 
     output.status = "fail"
-    local REDIS_CONNECTION = redis:new()
-    REDIS_CONNECTION:set_timeout(REDIS_TIMEOUT * 1000)
 
-    local ok, error = REDIS_CONNECTION:connect(REDIS_SERVER, REDIS_PORT)
-    if not ok then
-        ngx.log(LOG_LEVEL, "failed to connect to redis: ", error)
-        return
-    end
+    local data = Get(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY)
 
-    local redis_fetch = Fetch(REDIS_CONNECTION, SEED_FETCH_KEY, LOG_LEVEL)
-
-    if redis_fetch == nil then
-        -- Not found in REDIS. No further proccessing needed
-    else
+    if data then
         -- Found, check if valid
-        RD_POW = redis_fetch["POW"]
+        RD_POW = data["POW"]
 
-        TIMEDIFF = now - redis_fetch['TIME']
+        TIMEDIFF = now - data['TIME']
 
         if (POW == RD_POW) then
             if TIMEDIFF >= MIN_TIME then
-
                 COOKIE_EXPIRES = os.date('%a, %d %b %Y %X',
                                          os.time() + COKKIE_LIFETIME) ..
                                      TIMEZONE
@@ -391,29 +301,19 @@ function _M.response(config)
                     })
 
                 -- Log to redis with long lifetime
-                local redis_set = Set(REDIS_CONNECTION, COOKIE_FETCH_KEY,
-                                      COOKIE_VALUE, COKKIE_LIFETIME, LOG_LEVEL)
-                if redis_set == nil then
-                    output.message = "Server error"
-                else
-                    output.status = "success"
-                    output.redirect = redis_fetch['URL']
-                    Del(REDIS_CONNECTION, SEED_FETCH_KEY, LOG_LEVEL)
-                end
-                if not ok then
-                    ngx.log(LOG_LEVEL, err)
-                    return
-                end
+                Set(JS_CHALLENGE_SEED_CACHE, COOKIE_FETCH_KEY, COOKIE_VALUE,
+                    COKKIE_LIFETIME)
+
+                output.status = "success"
+                output.redirect = data['URL']
+                Del(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY)
             else
                 output.message = "To fast !"
                 output.time = TIMEDIFF
             end
-
         end
-
     end
 
-    local ok, err = REDIS_CONNECTION:close()
     ngx.header.cache_control = "no-store";
     -- ngx.header["Cache-Control"] = "no-cache, no-store, must-revalidate"
     -- ngx.header["Cache-Control"] = "max-age: 0"
@@ -421,8 +321,7 @@ function _M.response(config)
     -- ngx.header["Expires"] = "0"
 
     -- output.data=redis_fetch
-    ngx.say(cjson.encode(output))
-
+    ngx.say(Cjson.encode(output))
 end
 
 return _M

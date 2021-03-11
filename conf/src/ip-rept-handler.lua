@@ -82,7 +82,7 @@ end
 ---@param remote_addr string
 ---@param trust_time number
 return function(remote_addr, trust_time)
-    local cache_treat_score = tonumber(DNSBL_Cache:get(remote_addr))
+    local cache_treat_score = tonumber(DNSBL_cache:get(remote_addr))
     if cache_treat_score then return end
 
     local query_name = construct_dnsbl_query_name(remote_addr,
@@ -102,15 +102,15 @@ return function(remote_addr, trust_time)
 
     -- Search engine
     if parsed_dnsbl_response.visitor_type == 0 then
-        DNSBL_Cache:set(remote_addr, 0, SEARCH_ENGINE_TRUST_TIME)
+        DNSBL_cache:set(remote_addr, 0, SEARCH_ENGINE_TRUST_TIME)
         return
     end
     -- NXDOMAIN
     if parsed_dnsbl_response.threat_score == 0 then
-        DNSBL_Cache:set(remote_addr, 0, NXDOMAIN_TRUST_TIME)
+        DNSBL_cache:set(remote_addr, 0, NXDOMAIN_TRUST_TIME)
         return
     end
 
     local tt = validate_trust_time(trust_time)
-    DNSBL_Cache:set(remote_addr, parsed_dnsbl_response.threat_score, tt)
+    DNSBL_cache:set(remote_addr, parsed_dnsbl_response.threat_score, tt)
 end
