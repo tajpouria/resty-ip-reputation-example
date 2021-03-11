@@ -15,16 +15,21 @@ if not rt then ngx.log(ngx.CRIT, err) end
 RT = rt
 DNSBL_cache = ngx.shared.dnsbl_treat_score_cache
 JS_challenge_seed_cache = ngx.shared.js_challenge_seed_cache
+CK_cache = ngx.shared.ck_cache
 HONEYPOT_ACCESS_KEY = os.getenv("HONEYPOT_ACCESS_KEY")
-SEARCH_ENGINE_TRUST_TIME = 86400 -- 1 days
-NXDOMAIN_TRUST_TIME = 60 -- 1 min
-TRUST_TIME_THRESHOLD = 60 -- 1 min
-IP_reputation_handler = require "conf.src.ip-rept-handler"
+DNSBL_CACHE_SEARCH_ENGINE_EXPIRY = 86400 -- 1 days
+DNSBL_CACHE_EXPIRY = 60 -- 1 min
+CK_CACHE_EXPIRY = 60 -- 1min
+SEED_CACHE_EXPIRY = 60 -- 1min
 
+IP_reputation_handler = require "conf.src.ip-rept-handler"
 Resolver = require "resty.dns.resolver"
-Resty_sha1 = require "resty.sha1"
+Aes = require "resty.aes"
+Sha1 = require "resty.sha1"
 CK = require "resty.cookie"
 Str = require "resty.string"
+CK_crypto = require "conf.src.ck-crypto":new(
+                os.getenv("COOKIE_DECRYPTION_BASE64_SECRET"))
 function string:split(self, sep)
     local fields = {}
 

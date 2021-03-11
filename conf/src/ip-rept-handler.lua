@@ -67,17 +67,6 @@ local function parse_dnsbl_response(dnsbl_response_addr)
     }
 end
 
----Validate ip reputation trust time
----@param trust_time number
----@return number
-local function validate_trust_time(trust_time)
-    if not trust_time or trust_time > TRUST_TIME_THRESHOLD then
-        return TRUST_TIME_THRESHOLD
-    else
-        return trust_time
-    end
-end
-
 ---IP reputation handler
 ---@param remote_addr string
 ---@param trust_time number
@@ -102,15 +91,15 @@ return function(remote_addr, trust_time)
 
     -- Search engine
     if parsed_dnsbl_response.visitor_type == 0 then
-        DNSBL_cache:set(remote_addr, 0, SEARCH_ENGINE_TRUST_TIME)
+        DNSBL_cache:set(remote_addr, 0, DNSBL_CACHE_SEARCH_ENGINE_EXPIRY)
         return
     end
     -- NXDOMAIN
     if parsed_dnsbl_response.threat_score == 0 then
-        DNSBL_cache:set(remote_addr, 0, NXDOMAIN_TRUST_TIME)
+        DNSBL_cache:set(remote_addr, 0, DNSBL_CACHE_EXPIRY)
         return
     end
 
-    local tt = validate_trust_time(trust_time)
-    DNSBL_cache:set(remote_addr, parsed_dnsbl_response.threat_score, tt)
+    DNSBL_cache:set(remote_addr, parsed_dnsbl_response.threat_score,
+                    DNSBL_CACHE_EXPIRY)
 end

@@ -1,7 +1,7 @@
 local _M = {}
 
 local function sha1(data)
-    local s = Resty_sha1:new()
+    local s = Sha1:new()
     if not s then
         ngx.log(ngx.ERR, "failed to create the sha1 object")
         return
@@ -24,6 +24,7 @@ end
 
 local function render(template, obj)
     local str = ""
+    -- TODO: Need faster template engine
     for key, value in pairs(obj) do
         str = "::" .. key .. "::"
         template = string.gsub(template, str, value)
@@ -47,28 +48,35 @@ local function RandomString(length)
 end
 
 local function Get(dict, key)
+    -- TODO: Handle err
     local json = dict:get(key)
     if not json then return nil end
 
+    -- TODO: Handle err
     return Cjson.decode(json)
 end
 
-local function Del(dict, key) dict:delete(key) end
+local function Del(dict, key)
+    -- TODO: Handle err
+    dict:delete(key)
+end
 
-local function Set(dict, key, data, ttl) dict:set(key, Cjson.encode(data), ttl) end
+local function Set(dict, key, data, ttl)
+    -- TODO: Handle err
+    dict:set(key, Cjson.encode(data), ttl)
+end
 
 function _M.challenge(config)
-    local LOG_LEVEL = config.log_level or ngx.NOTICE
-
     local BASIC_DIFFICULTY = config.difficulty or 100
     local MIN_DIFFICULTY = config.min_difficulty or 0
-    local SEED_LIFETIME = config.lifetime or 60
+    local TRUST_TIME = config.TRUST_TIME or 300 -- TODO: Check for minimum 5 min
     local RESPONSE_TARGET = config.target or "___"
-    local COOKIE_NAME = config.cookie or "_cuid"
+    local COOKIE_NAME = config.cookie or "_pduid"
     local PUZZLE_TEMPLATE_LOCATION = config.template or
                                          '/etc/nginx/html/puzzle.html'
     local CLIENT_KEY = config.client_key or ngx.var.remote_addr
 
+    local CK_CACHE = config.ck_cache or CK_cache
     local JS_CHALLENGE_SEED_CACHE = config.js_challenge_seed_cache or
                                         JS_challenge_seed_cache
 
@@ -76,36 +84,29 @@ function _M.challenge(config)
 
     local SEED_FETCH_KEY = "SEED_" .. CLIENT_KEY
 
-    local authenticated = false
-
     local field = false
     -- Create URL
     local URL = ngx.var.scheme .. "://" .. ngx.var.host .. ngx.var.request_uri;
 
     local cookie, err = CK:new()
     if not cookie then
-        ngx.log(LOG_LEVEL, err)
+        ngx.log(ngx.ERR, err)
         ngx.exit(503)
         return
     end
 
     field, err = cookie:get(COOKIE_NAME)
     if field then
-        local data = Get(JS_CHALLENGE_SEED_CACHE, COOKIE_FETCH_KEY)
-        if data ~= nil then
-            if data == field then
-                authenticated = true
-                ngx.header.cache_control = "no-store";
-                return true
-            end
+        local data = Get(CK_CACHE, COOKIE_FETCH_KEY)
+        if data == field then
+            ngx.header.cache_control = "no-store";
+            return true
         end
     end
 
     if ngx.var.request_method ~= 'GET' then
-        if not authenticated then
-            -- ngx.exit(ngx.HTTP_FORBIDDEN)
-            ngx.exit(405)
-        end
+        ngx.exit(405)
+        return
     end
 
     -- Set client key for SEED
@@ -114,19 +115,16 @@ function _M.challenge(config)
 
     local SEED = ""
     local POW = ""
-    local reuse = false
 
     local DIFF = BASIC_DIFFICULTY * TRYS
 
-    local redis_fetch = Get(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY)
-
-    -- If not set in REDIS, then do some work
-
-    local obj = {}
+    local data = Get(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY)
 
     local now = os.time();
 
-    if redis_fetch == nil then
+    local obj = {}
+
+    if data == nil then
         SEED = RandomString(30)
         -- Create Proof Of Work integer
         POW = CreatePow(MIN_DIFFICULTY, DIFF);
@@ -147,39 +145,38 @@ function _M.challenge(config)
             DIFF = DIFF,
             TIME = now,
             TARGET = RESPONSE_TARGET,
-            URL = URL
+            URL = URL,
+            TRUST_TIME = TRUST_TIME
         }
         -- Set to REDIS, so it can be fetched
-        Set(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY, obj, SEED_LIFETIME)
+        Set(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY, obj, SEED_CACHE_EXPIRY)
     else
         -- Bump trys
-        TRYS = tonumber(redis_fetch['TRYS']) + 1
+        TRYS = tonumber(data['TRYS']) + 1
 
         -- Make it harder
         DIFF = BASIC_DIFFICULTY * TRYS
         obj = {
-            POW = redis_fetch['POW'],
-            SEED = redis_fetch['SEED'],
-            HASH = redis_fetch['HASH'],
+            POW = data['POW'],
+            SEED = data['SEED'],
+            HASH = data['HASH'],
             TRYS = TRYS,
             DIFF = DIFF,
             TIME = now,
-            TARGET = redis_fetch['TARGET'],
-            URL = redis_fetch['URL']
+            TARGET = data['TARGET'],
+            URL = data['URL'],
+            TRUST_TIME = TRUST_TIME
         }
 
         -- Set to REDIS, so trycount we can bump trycount and Time
-        Set(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY, obj, SEED_LIFETIME)
-        -- obj = redis_fetch
+        Set(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY, obj, SEED_CACHE_EXPIRY)
     end
-
-    -- For debugging , output JSON
-    -- ngx.say(cjson.encode(obj))
 
     -- Set template as string
     local PUZZLE_TEMPLATE = ""
 
     -- Open file
+    -- TODO: Read template once
     local f = io.open(PUZZLE_TEMPLATE_LOCATION, 'r')
 
     -- If file not open, then throw error
@@ -190,30 +187,27 @@ function _M.challenge(config)
         io.close(f)
     else
         -- Log if error and exit with error code
-        ngx.log(LOG_LEVEL, 'Could not find template')
+        ngx.log(ngx.ERR, 'Could not find template')
         ngx.exit(503)
     end
 
     local puzzle_html = render(PUZZLE_TEMPLATE, obj)
 
-    -- Render the template to users
-    -- ngx.header["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    -- ngx.header["Cache-Control"] = "max-age: 0"
-    -- ngx.header["Pragma"] = "no-cache"
-    -- ngx.header["Expires"] = "0"
-
     ngx.header['Content-Type'] = 'text/html; charset=UTF-8'
     ngx.say(puzzle_html)
     ngx.exit(ngx.HTTP_OK)
-
-    -- ngx.exit(405) 
 end
 
 function _M.response(config)
-    local LOG_LEVEL = config.log_level or ngx.NOTICE
+    -- TODO: Is that really necessary?
+    -- expecting an Ajax GET
+    if ngx.req.get_headers()["x_requested_with"] ~= "XMLHttpRequest" then
+        ngx.log(ngx.ERR, "Not XMLHttpReq")
+        ngx.exit(405)
+        return
+    end
 
-    local COKKIE_LIFETIME = config.session_lifetime or 604800
-    local COOKIE_NAME = config.cookie or "_cuid"
+    local COOKIE_NAME = config.cookie or "_pduid"
     local CLIENT_KEY = config.client_key or ngx.var.remote_addr
     local TIMEZONE = config.timezone or "GMT"
     local HTTP_ONLY = config.http_only_cookie or false
@@ -223,7 +217,7 @@ function _M.response(config)
 
     local MIN_TIME = config.min_time or 2
 
-    -- Redis Config
+    local CK_CACHE = config.ck_cache or CK_cache
     local JS_CHALLENGE_SEED_CACHE = config.js_challenge_seed_cache or
                                         JS_challenge_seed_cache
 
@@ -234,13 +228,9 @@ function _M.response(config)
     local POW = tonumber(args.POW)
     local RD_POW = 0
     local TIMEDIFF = 0
-    local req_headers = ngx.req.get_headers()
     local COOKIE_EXPIRES = ""
-    local COOKIE_VALUE = RandomString(20)
 
     TIMEZONE = " " .. TIMEZONE
-
-    local now = os.time();
 
     if not SEED then
         ngx.exit(ngx.HTTP_FORBIDDEN)
@@ -256,18 +246,11 @@ function _M.response(config)
 
     local SEED_FETCH_KEY = "SEED_" .. CLIENT_KEY;
 
-    -- expecting an Ajax GET
-    if req_headers.x_requested_with ~= "XMLHttpRequest" then
-        ngx.log(ngx.ERR, "Not XMLHttpReq")
-        ngx.exit(405)
-        return
-    end
-
     ----- Authentication checks done --
 
     local cookie, err = CK:new()
     if not cookie then
-        ngx.log(LOG_LEVEL, err)
+        ngx.log(ngx.ERR, err)
         return
     end
 
@@ -281,46 +264,50 @@ function _M.response(config)
         -- Found, check if valid
         RD_POW = data["POW"]
 
+        local now = os.time()
+
         TIMEDIFF = now - data['TIME']
+
+        local COOKIE_LIFETIME = data['TRUST_TIME']
 
         if (POW == RD_POW) then
             if TIMEDIFF >= MIN_TIME then
+                -- TODO: Handle err
+                local cookie_value, err =
+                    CK_crypto:encrypt(now + COOKIE_LIFETIME)
+                if not cookie_value then
+                    ngx.log(ngx.ERR, err)
+                    return
+                end
+
                 COOKIE_EXPIRES = os.date('%a, %d %b %Y %X',
-                                         os.time() + COKKIE_LIFETIME) ..
-                                     TIMEZONE
+                                         now + COOKIE_LIFETIME) .. TIMEZONE
+                -- TODO: Handler err
                 local ok, err = cookie:set(
                                     {
                         key = COOKIE_NAME,
-                        value = COOKIE_VALUE,
+                        value = cookie_value,
                         path = COOKIE_PATH,
                         domain = COOKIE_DOMAIN,
                         secure = SECURE,
                         httponly = HTTP_ONLY,
                         expires = COOKIE_EXPIRES,
-                        max_age = COKKIE_LIFETIME
+                        max_age = COOKIE_LIFETIME
                     })
 
-                -- Log to redis with long lifetime
-                Set(JS_CHALLENGE_SEED_CACHE, COOKIE_FETCH_KEY, COOKIE_VALUE,
-                    COKKIE_LIFETIME)
+                Set(CK_CACHE, COOKIE_FETCH_KEY, cookie_value, CK_CACHE_EXPIRY)
 
                 output.status = "success"
                 output.redirect = data['URL']
                 Del(JS_CHALLENGE_SEED_CACHE, SEED_FETCH_KEY)
             else
-                output.message = "To fast !"
+                output.message = "Too fast!"
                 output.time = TIMEDIFF
             end
         end
     end
 
     ngx.header.cache_control = "no-store";
-    -- ngx.header["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    -- ngx.header["Cache-Control"] = "max-age: 0"
-    -- ngx.header["Pragma"] = "no-cache"
-    -- ngx.header["Expires"] = "0"
-
-    -- output.data=redis_fetch
     ngx.say(Cjson.encode(output))
 end
 
