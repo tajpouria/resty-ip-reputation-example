@@ -372,7 +372,7 @@
             current = _seed + i;
             sha1 = CryptoJS.SHA1(_seed + i).toString();
             if (sha1 == _hash) {
-              // if foudn then return with restulst
+              // if found then return with results
               return { SEED: _seed, POW: i, HASH: _hash };
             }
           }
