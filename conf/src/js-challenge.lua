@@ -188,7 +188,7 @@ function _M.response(config)
     local HTTP_ONLY = config.http_only_cookie or false
     local SECURE = config.cookie_secure or false
     local COOKIE_DOMAIN = config.cookie_domain or ngx.var.host
-    local COOKIE_PATH = config.cookie_domain or "/"
+    local COOKIE_PATH = config.cookie_path or "/"
     local MIN_TIME = config.min_time or 2
     local PDUID_CACHE = config.ck_cache or PDUID_cache
     local JS_CHALLENGE_SEED_CACHE = config.js_challenge_seed_cache or

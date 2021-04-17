@@ -33,24 +33,23 @@ local function render(template, obj)
     return template
 end
 
-function _M.challenge(config)
+function _M.challenge(conf)
     if ngx.var.request_method ~= 'GET' then
         ngx.exit(405)
         return
     end
 
-    local RESPONSE_TARGET = config.target or "_challenge_response/recaptcha"
-    local PUZZLE_TEMPLATE_LOCATION = config.template or
+    local RESPONSE_TARGET = conf.target or "_challenge_response/recaptcha"
+    local PUZZLE_TEMPLATE_LOCATION = conf.template or
                                          'conf/src/recaptcha-challenge.html'
-    local CLIENT_KEY = config.client_key or ngx.var.remote_addr
+    local CLIENT_KEY = conf.client_key or ngx.var.remote_addr
     local URL = ngx.var.scheme .. "://" .. ngx.var.host .. ngx.var.request_uri;
-    local TRUST_TIME = config.trust_time or 300
+    local TRUST_TIME = conf.trust_time or 300
     if TRUST_TIME < 300 then TRUST_TIME = 300 end
     local RECAPTCHA_CHALLENGE_SEED_CACHE =
-        config.recaptcha_challenge_seed_cache or Recaptcha_challenge_seed_cache
+        conf.recaptcha_challenge_seed_cache or Recaptcha_challenge_seed_cache
 
-    local obj = {URL = URL, TRUST_TIME = TRUST_TIME}
-    Set(RECAPTCHA_CHALLENGE_SEED_CACHE, CLIENT_KEY, obj,
+    Set(RECAPTCHA_CHALLENGE_SEED_CACHE, CLIENT_KEY, {TRUST_TIME = TRUST_TIME},
         RECAPTCHA_CHALLENGE_SEED_CACHE_EXPIRY)
 
     local PUZZLE_TEMPLATE = ""
@@ -81,7 +80,18 @@ function _M.challenge(config)
     ngx.exit(ngx.HTTP_OK)
 end
 
-function _M.response()
+function _M.response(conf)
+    local CLIENT_KEY = conf.client_key or ngx.var.remote_addr
+    local RECAPTCHA_CHALLENGE_SEED_CACHE =
+        conf.recaptcha_challenge_seed_cache or Recaptcha_challenge_seed_cache
+    local PDUID_CACHE = conf.ck_cache or PDUID_cache
+    local HTTP_ONLY = conf.http_only_cookie or false
+    local COOKIE_PATH = conf.cookie_path or "/"
+    local COOKIE_DOMAIN = conf.cookie_domain or ngx.var.host
+    local SECURE = conf.cookie_secure or false
+    local TIMEZONE = conf.timezone or "GMT"
+    TIMEZONE = " " .. TIMEZONE
+
     if ngx.req.get_headers()["x_requested_with"] ~= "XMLHttpRequest" then
         ngx.log(ngx.ERR, "Not XMLHttpReq")
         ngx.exit(405)
@@ -92,8 +102,9 @@ function _M.response()
 
     local args = ngx.req.get_uri_args()
     local response = args.response
+    local data = Get(RECAPTCHA_CHALLENGE_SEED_CACHE, CLIENT_KEY)
 
-    if response then
+    if response and data then
         local config = ngx.shared.config
         local request_url = (config:get("google_recaptcha_validation_url") or
                                 "https://www.google.com/recaptcha/api/siteverify") ..
@@ -103,12 +114,43 @@ function _M.response()
                                 response .. "&remoteip=" .. ngx.var.remote_addr
 
         local success, err = googleRecaptchaFinalizing(request_url)
-        if not success then
+        if success == false then
             ngx.log(ngx.ERR, err)
             ngx.exit(403)
         end
 
+        local cookie, err = CK:new()
+        if not cookie then
+            ngx.log(ngx.ERR, err)
+            return
+        end
+
+        local now = os.time()
+        local COOKIE_LIFETIME = data['TRUST_TIME'] or 300
+        local cookie_value, err = CK_crypto:encrypt(
+                                      tostring(now + COOKIE_LIFETIME))
+        if not cookie_value then
+            ngx.log(ngx.ERR, err)
+            return
+        end
+        local COOKIE_EXPIRES =
+            os.date('%a, %d %b %Y %X', now + COOKIE_LIFETIME) .. TIMEZONE
+
+        local ok, err = cookie:set({
+            key = PDUID_cookie_key,
+            value = cookie_value,
+            path = COOKIE_PATH,
+            domain = COOKIE_DOMAIN,
+            secure = SECURE,
+            httponly = HTTP_ONLY,
+            expires = COOKIE_EXPIRES,
+            max_age = COOKIE_LIFETIME
+        })
+
+        Set(PDUID_CACHE, cookie_value, 1, PDUID_CACHE_EXPIRY)
+
         output = {status = "success"}
+        Del(RECAPTCHA_CHALLENGE_SEED_CACHE, CLIENT_KEY)
     end
 
     ngx.header.cache_control = "no-store";
