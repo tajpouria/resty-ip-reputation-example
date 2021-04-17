@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="https://parspack.com/wp-content/themes/parspack/template/images/favicons/apple-touch-icon.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="https://parspack.com/wp-content/themes/parspack/template/images/favicons/favicon-32x32.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="16x16"
+      href="https://parspack.com/wp-content/themes/parspack/template/images/favicons/favicon-16x16.png"
+    />
+    <link
+      rel="mask-icon"
+      href="https://parspack.com/wp-content/themes/parspack/template/images/favicons/safari-pinned-tab.svg"
+      color="#5bbad5"
+    />
+    <link
+      rel="shortcut icon"
+      href="https://parspack.com/wp-content/themes/parspack/template/images/favicons/favicon.ico"
+    />
+    <meta name="msapplication-TileColor" content="#da532c" />
+    <meta
+      name="msapplication-TileImage"
+      content="https://parspack.com/wp-content/themes/parspack/template/images/favicons/mstile-144x144.png"
+    />
+    <script src="//www.google.com/recaptcha/api.js"></script>
+  </head>
+  <style>
+    body
+    {
+    	font-family: "Helvetica","Arial",sans-serif;
+    	position: relative;
+    	width: 100%;
+    	height: 100%;
+    	margin: 0 auto;
+    	padding: 10;
+    }
+    .header-section
+    {
+    	position: relative;
+    	width: 1000px;
+    	margin: 0 auto;
+    	padding: 0;
+    }
+    .msg-section
+    {
+    	background-color: #dde8f9;
+    	position: relative;
+    	width: 1000px;
+    	height:200px;
+    	margin: 0 auto;
+    	padding:20px;
+    	text-align: center;
+    	direction:{{DIRECTION}};
+    }
+    .logo
+    {
+    	margin:10px 10px;
+    	width:60px;
+    	height:auto;
+    }
+    .g-recaptcha
+    {
+    	display: inline-block;
+    }
+  </style>
+  <body>
+    <header class="header-section">
+      <a href="http://parspack.com"
+        ><img
+          class="logo"
+          src="https://parspack.com/wp-content/themes/parspack/template/images/logo-white.svg"
+          title="parspack"
+      /></a>
+      <h1>{{PAGE_TITLE}}</h1>
+    </header>
+    <div class="msg-section">
+      <div>
+        <p>{{PAGE_MSG}}</p>
+      </div>
+      <div
+        id="grecaptcha"
+        class="g-recaptcha"
+        data-sitekey="{{PUBLIC_KEY}}"
+        data-callback="check_method"
+      ></div>
+      <form
+        class="form"
+        id="submit_form"
+        width="100%"
+        height="100%"
+        action="/wcdn_validationCheck"
+      >
+        <input
+          type="hidden"
+          id="wcdn_validation_resp_token"
+          name="wcdn_validation_resp_token"
+          value=""
+        />
+      </form>
+    </div>
+    <script>
+      function check_method() {
+        var response = grecaptcha.getResponse();
+        if (response.length > 0) {
+          var wcdn_validation_resp_token = document.getElementById(
+            "wcdn_validation_resp_token",
+          );
+          wcdn_validation_resp_token.value = response.toString();
+          document.getElementById("submit_form").submit();
+        }
+      }
+    </script>
+  </body>
+</html>

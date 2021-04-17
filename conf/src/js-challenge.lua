@@ -75,7 +75,7 @@ function _M.challenge(config)
     local BASIC_DIFFICULTY = config.difficulty or 100
     local MIN_DIFFICULTY = config.min_difficulty or 0
     local TRUST_TIME = config.trust_time or 300 -- TODO: Check for minimum 5 min
-    local RESPONSE_TARGET = config.target or "___"
+    local RESPONSE_TARGET = config.target or "_challenge_response/js"
     local PUZZLE_TEMPLATE_LOCATION = config.template or
                                          '/etc/nginx/html/puzzle.html'
     local CLIENT_KEY = config.client_key or ngx.var.remote_addr
@@ -125,7 +125,7 @@ function _M.challenge(config)
             TRUST_TIME = TRUST_TIME
         }
         -- Set to REDIS, so it can be fetched
-        Set(JS_CHALLENGE_SEED_CACHE, CLIENT_KEY, obj, SEED_CACHE_EXPIRY)
+        Set(JS_CHALLENGE_SEED_CACHE, CLIENT_KEY, obj, JS_CHALLENGE_SEED_CACHE_EXPIRY)
     else
         -- Bump trys
         TRYS = tonumber(data['TRYS']) + 1
@@ -145,7 +145,7 @@ function _M.challenge(config)
         }
 
         -- Set to REDIS, so trycount we can bump trycount and Time
-        Set(JS_CHALLENGE_SEED_CACHE, CLIENT_KEY, obj, SEED_CACHE_EXPIRY)
+        Set(JS_CHALLENGE_SEED_CACHE, CLIENT_KEY, obj, JS_CHALLENGE_SEED_CACHE_EXPIRY)
     end
 
     -- Set template as string

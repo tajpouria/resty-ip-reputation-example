@@ -30,15 +30,26 @@ if conf["ip_reputation_enabled"] == 1 then
 
         local treat_score = DNSBL(remote_addr)
         if treat_score >= tonumber(conf["ip_reputation_treat_score"] or 10) then
+            local ip_reputation_challenge = conf["ip_reputation_challenge"]
+            if ip_reputation_challenge == "recaptcha" then
+                Recaptcha_challenge.challenge {
+                    target = "_challenge_response/recaptcha",
+                    template = 'conf/src/recaptcha-challenge.html',
+                    client_key = remote_addr,
+                    trust_time = tonumber(conf["ip_reputation_trust_time"])
+                }
+            end
             JS_challenge.challenge {
                 difficulty = 100,
                 min_difficulty = 0,
                 seed_length = 30,
-                target = "___",
+                target = "_challenge_response/js",
                 template = 'conf/src/js-challenge.html',
                 client_key = remote_addr,
                 trust_time = tonumber(conf["ip_reputation_trust_time"])
             }
+        else
+
         end
     end
 end
