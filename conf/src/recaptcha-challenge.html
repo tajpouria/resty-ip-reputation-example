@@ -33,7 +33,8 @@
       name="msapplication-TileImage"
       content="https://parspack.com/wp-content/themes/parspack/template/images/favicons/mstile-144x144.png"
     />
-    <script src="//www.google.com/recaptcha/api.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
   </head>
   <style>
     body
@@ -112,12 +113,17 @@
     <script>
       function check_method() {
         var response = grecaptcha.getResponse();
-        if (response.length > 0) {
-          var wcdn_validation_resp_token = document.getElementById(
-            "wcdn_validation_resp_token",
-          );
-          wcdn_validation_resp_token.value = response.toString();
-          document.getElementById("submit_form").submit();
+        if (response && response.length) {
+          $.ajax({
+            url: "{{TARGET}}",
+            data: { response: response.toString() },
+            dataType: "json",
+            success: function (d) {
+              setTimeout(function () {
+                window.location.reload(true);
+              }, 1200);
+            },
+          });
         }
       }
     </script>

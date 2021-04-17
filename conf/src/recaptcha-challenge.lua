@@ -11,6 +11,19 @@ local function Del(dict, key) dict:delete(key) end
 
 local function Set(dict, key, data, ttl) dict:set(key, Cjson.encode(data), ttl) end
 
+local function googleRecaptchaFinalizing(request_url)
+    local res, err = Requests.request("GET", request_url)
+    if not res then
+        ngx.log(ngx.ERR, err)
+        return nil, err
+    end
+
+    local json, err = res:json()
+    if not json then return nil, err end
+    if not json.success then return false, json['error-codes'] end
+    return json.success, nil
+end
+
 local function render(template, obj)
     local str = ""
     for key, value in pairs(obj) do
@@ -50,23 +63,56 @@ function _M.challenge(config)
         ngx.exit(503)
     end
 
+    local config = ngx.shared.config
+    local lang = ngx.var.lang or "en"
     local puzzle_html = render(PUZZLE_TEMPLATE, {
-        PUBLIC_KEY = ngx.shared.config:get("wcdn_captcha_public_key") or
+        PUBLIC_KEY = config:get("wcdn_captcha_public_key") or
             RECAPTCHA_PUBLIC_KEY,
-        DIRECTION = ngx.shared.config:get(ngx.var.lang .. "_direction") or "ltr",
-        PAGE_TITLE = ngx.shared.config:get(
-            ngx.var.lang .. "_wcdn_captcha_page_title") or
-            "Recatcha validation title",
-        PAGE_MSG = ngx.shared.config:get(
-            ngx.var.lang .. "_wcdn_captcha_help_msg") or
-            "Recatcha validation message"
+        TARGET = RESPONSE_TARGET,
+        DIRECTION = config:get(lang .. "_direction") or "ltr",
+        PAGE_TITLE = config:get(lang .. "_wcdn_captcha_page_title") or
+            "Recaptcha validation title",
+        PAGE_MSG = config:get(lang .. "_wcdn_captcha_help_msg") or
+            "Recaptcha validation message"
     })
 
-    ngx.header['Content-Type'] = 'text/html; charset=UTF-8'
+    ngx.header['Content-Type'] = 'text/html; charset=utf-8'
     ngx.say(puzzle_html)
     ngx.exit(ngx.HTTP_OK)
 end
 
-function _M.response() end
+function _M.response()
+    if ngx.req.get_headers()["x_requested_with"] ~= "XMLHttpRequest" then
+        ngx.log(ngx.ERR, "Not XMLHttpReq")
+        ngx.exit(405)
+        return
+    end
+
+    local output = {status = "fail"}
+
+    local args = ngx.req.get_uri_args()
+    local response = args.response
+
+    if response then
+        local config = ngx.shared.config
+        local request_url = (config:get("google_recaptcha_validation_url") or
+                                "https://www.google.com/recaptcha/api/siteverify") ..
+                                "?secret=" ..
+                                (config:get("wcdn_captcha_private_key") or
+                                    RECAPTCHA_PRIVATE_KEY) .. "&response=" ..
+                                response .. "&remoteip=" .. ngx.var.remote_addr
+
+        local success, err = googleRecaptchaFinalizing(request_url)
+        if not success then
+            ngx.log(ngx.ERR, err)
+            ngx.exit(403)
+        end
+
+        output = {status = "success"}
+    end
+
+    ngx.header.cache_control = "no-store";
+    ngx.say(Cjson.encode(output))
+end
 
 return _M

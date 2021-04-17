@@ -1,4 +1,5 @@
 opm get ktalebian/lua-resty-cookie
+opm get tokers/lua-resty-requests
 
 [httpbl_api](https://www.projecthoneypot.org/httpbl_api.php)
 
