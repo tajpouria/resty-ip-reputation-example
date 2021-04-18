@@ -13,7 +13,7 @@ if not rt then ngx.log(ngx.CRIT, err) end
 
 -- Global definitions
 RT = rt
-DNSBL_cache = ngx.shared.dnsbl_treat_score_cache
+DNSBL_cache = ngx.shared.dnsbl_cache
 JS_challenge_seed_cache = ngx.shared.js_challenge_seed_cache
 Recaptcha_challenge_seed_cache = ngx.shared.recaptcha_challenge_seed_cache
 PDUID_cache = ngx.shared.pduid_cache
