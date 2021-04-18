@@ -2,7 +2,7 @@
   "ifconfig.me": {
     "target_ip": "216.239.32.21",
     "ip_reputation_enabled": 1,
-    "ip_reputation_challenge": "recaptcha",
+    "ip_reputation_challenge": "js",
     "ip_reputation_trust_time": 30,
     "ip_reputation_treat_score": 0
   }
